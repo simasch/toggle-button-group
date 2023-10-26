@@ -17,6 +17,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.io.Serializable;
 import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -25,6 +26,10 @@ public class ToggleButtonGroup<T> extends CustomField<T> {
 
     public enum Orientation {
         HORIZONTAL, VERTICAL
+    }
+
+    public enum AutoSelectMode {
+        NONE, FIRST, SINGLE;
     }
 
     private List<T> items;
@@ -39,6 +44,7 @@ public class ToggleButtonGroup<T> extends CustomField<T> {
     private boolean enabled = true;
     private boolean toggleable = true;
     private Orientation orientation = Orientation.HORIZONTAL;
+    private AutoSelectMode autoSelectMode = AutoSelectMode.NONE;
     // internals:
     private final Map<Serializable, Integer> originalOrderMap = new HashMap<>();
     private final Map<Serializable, Button> idToButtonMap = new HashMap<>();
@@ -81,6 +87,7 @@ public class ToggleButtonGroup<T> extends CustomField<T> {
 
         idToButtonMap.clear();
         buttonToItemMap.clear();
+        selected = null;
 
         items.sort(getDefaultComparator());
 
@@ -94,7 +101,22 @@ public class ToggleButtonGroup<T> extends CustomField<T> {
             idToButtonMap.put(itemIdGenerator.apply(item), buttons[i]);
         }
 
+        autoSelect();
         addButtonsToLayout(buttons);
+    }
+
+    private void autoSelect() {
+        switch (autoSelectMode) {
+            case NONE -> {}
+            case FIRST -> items.stream().map(i -> idToButtonMap.get(itemIdGenerator.apply(i))).filter(Button::isEnabled)
+              .findFirst().ifPresent(b -> setValue(buttonToItemMap.get(b)));
+            case SINGLE -> {
+                var enabledButtons = buttonToItemMap.keySet().stream().filter(Button::isEnabled).toList();
+                if (enabledButtons.size() == 1) {
+                    setValue(buttonToItemMap.get(enabledButtons.get(0)));
+                }
+            }
+        }
     }
 
     protected void addButtonsToLayout(Button[] buttons) {
@@ -315,6 +337,14 @@ public class ToggleButtonGroup<T> extends CustomField<T> {
     public void setOrientation(Orientation orientation) {
         this.orientation = orientation;
         init();
+    }
+
+    public AutoSelectMode getAutoSelectMode() {
+        return autoSelectMode;
+    }
+
+    public void setAutoSelectMode(AutoSelectMode mode) {
+        autoSelectMode = mode;
     }
 
     @Override
